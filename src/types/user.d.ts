@@ -9,6 +9,8 @@ export interface IUser {
   spamReportedPotholes: Types.ObjectId[];
   repairUpvotes: Types.ObjectId[];
   downvotedRepairs: Types.ObjectId[];
+  // NEW: Add field to track comments made by this user
+  commentedPotholes: Types.ObjectId[];
   createdAt?: Date;
   updatedAt?: Date;
   _id: Types.ObjectId; // Make _id required

@@ -1,8 +1,8 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import connectDB from "@/lib/mongo";
-import User from "@/models/User";
-import { IUser } from "@/types/user";
+import User from "@/models/User"; // Correctly imported and used
+import { IUser } from "@/types/user"; // Correctly imported and used
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -15,6 +15,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session }) {
       if (session.user?.email) {
         await connectDB();
+        // Use lean() for better performance as we only need the data, not Mongoose methods
         const dbUser = await User.findOne({ email: session.user.email }).lean<IUser>();
         if (dbUser) {
           session.user.id = dbUser._id.toString();
@@ -22,7 +23,7 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async signIn({ user, account, profile }) {
+    async signIn({ user }) { // `user` is implicitly typed by NextAuth, no need for `_account`, `_profile` if not used
       await connectDB();
       const existingUser = await User.findOne({ email: user.email });
       if (!existingUser) {
@@ -35,9 +36,10 @@ export const authOptions: NextAuthOptions = {
           spamReportedPotholes: [],
           repairUpvotes: [],
           downvotedRepairs: [],
+          commentedPotholes: [], // Initialize new field
         });
       }
-      return true;
+      return true; // Allow sign in
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

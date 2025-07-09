@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import { Schema, model, models } from "mongoose";
 import { IUserDocument } from "@/types/user";
 
 const UserSchema = new Schema<IUserDocument>(
@@ -11,6 +11,8 @@ const UserSchema = new Schema<IUserDocument>(
     spamReportedPotholes: [{ type: Schema.Types.ObjectId, ref: "Pothole" }],
     repairUpvotes: [{ type: Schema.Types.ObjectId, ref: "Pothole" }],
     downvotedRepairs: [{ type: Schema.Types.ObjectId, ref: "Pothole" }],
+    // NEW: Add field to track comments made by this user
+    commentedPotholes: [{ type: Schema.Types.ObjectId, ref: "Pothole" }],
   },
   { timestamps: true }
 );

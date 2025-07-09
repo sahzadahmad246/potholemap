@@ -16,7 +16,7 @@ const potholeData = [
       "Deep pothole causing damage to vehicles. Located near the intersection with Oak Avenue. Multiple cars have reported tire damage.",
     address: "1234 Main Street",
     city: "Downtown",
-    image: "/placeholder.svg?height=300&width=400",
+    image: "/download.jpeg?height=300&width=400",
     upvotes: 24,
     comments: 8,
     reportedBy: {

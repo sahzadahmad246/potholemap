@@ -1,13 +1,14 @@
-import mongoose from "mongoose"; // Import mongoose for session management
+// src/app/api/potholes/[id]/comment/route.ts
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongo";
 import Pothole from "@/models/Pothole";
-import User from "@/models/User"; // Import User model to update user's commentedPotholes
+import User from "@/models/User";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { Types } from "mongoose";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let sessionMongo: mongoose.ClientSession | null = null;
   try {
     await connectDB();
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const userId = new Types.ObjectId(session.user.id);
-    const potholeId = params.id;
+    const potholeId = await params.then(p => p.id); // Await params to access id
 
     if (!Types.ObjectId.isValid(potholeId)) {
       return NextResponse.json({ error: "Invalid Pothole ID format." }, { status: 400 });
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Comment text is required." }, { status: 400 });
     }
     if (comment.length > 200) {
-        return NextResponse.json({ error: "Comment cannot exceed 200 characters." }, { status: 400 });
+      return NextResponse.json({ error: "Comment cannot exceed 200 characters." }, { status: 400 });
     }
 
     const pothole = await Pothole.findById(potholeId);
@@ -57,9 +58,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           },
         },
         { new: true, session: sessionMongo }
-      );
+      ).populate("comments.userId", "name image"); // Populate userId with name and image
 
-      // Add pothole ID to user's commentedPotholes, using $addToSet to prevent duplicates
+      // Add pothole ID to user's commentedPotholes
       await User.findByIdAndUpdate(
         userId,
         { $addToSet: { commentedPotholes: new Types.ObjectId(potholeId) } },
@@ -71,18 +72,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const newComment = updatedPothole?.comments[updatedPothole.comments.length - 1];
 
       return NextResponse.json({ message: "Comment added successfully.", comment: newComment }, { status: 201 });
-
     } catch (error) {
-      if (sessionMongo) {
-        await sessionMongo.abortTransaction();
-      }
-      throw error; // Re-throw to be caught by the outer catch block
+      await sessionMongo.abortTransaction();
+      throw error;
     } finally {
-      if (sessionMongo) {
-        sessionMongo.endSession();
-      }
+      sessionMongo.endSession();
     }
-
   } catch (error) {
     console.error("Error adding comment to pothole:", error);
     return NextResponse.json({ error: "Failed to add comment." }, { status: 500 });

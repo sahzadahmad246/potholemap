@@ -1,3 +1,4 @@
+// src/models/Pothole.ts
 import { Schema, model, models } from "mongoose";
 import { IPotholeDocument } from "@/types/pothole";
 
@@ -35,6 +36,7 @@ const PotholeSchema = new Schema<IPotholeDocument>(
       {
         userId: { type: Schema.Types.ObjectId, ref: "User" },
         image: { type: String },
+        publicId: { type: String },
         comment: { type: String },
         reportedAt: { type: Date, default: Date.now },
       },
@@ -53,12 +55,12 @@ const PotholeSchema = new Schema<IPotholeDocument>(
     repairReport: {
       submittedBy: { type: Schema.Types.ObjectId, ref: "User" },
       image: { type: String },
+      publicId: { type: String }, 
       comment: { type: String },
       submittedAt: { type: Date, default: Date.now },
       upvotes: [
         {
           userId: { type: Schema.Types.ObjectId, ref: "User" },
-          image: { type: String },
           votedAt: { type: Date, default: Date.now },
         },
       ],
@@ -69,7 +71,6 @@ const PotholeSchema = new Schema<IPotholeDocument>(
           votedAt: { type: Date, default: Date.now },
         },
       ],
-      confirmed: { type: Boolean, default: false },
     },
     repairedAt: { type: Date },
     hidden: { type: Boolean, default: false },

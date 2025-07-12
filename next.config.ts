@@ -1,8 +1,7 @@
-// next.config.js or next.config.ts
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['res.cloudinary.com'],
+    domains: ['res.cloudinary.com', 'lh3.googleusercontent.com'],
   },
 }
 

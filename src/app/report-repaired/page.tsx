@@ -40,13 +40,15 @@ const PotholeDetailsPage: React.FC = () => {
   const [pothole, setPothole] = useState<IPotholePopulated | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isUpvotingPothole, setIsUpvotingPothole] = useState(false); // For main pothole upvote
+  const [isUpvotingPothole, setIsUpvotingPothole] = useState(false); // Renamed to avoid confusion
   const [isReportingSpam, setIsReportingSpam] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isCommenting, setIsCommenting] = useState(false);
   // New states for repair report voting
   const [isUpvotingRepairReport, setIsUpvotingRepairReport] = useState(false);
   const [isDownvotingRepairReport, setIsDownvotingRepairReport] = useState(false);
+ 
+
   const router = useRouter();
 
   const fetchPotholeDetails = useCallback(async () => {
@@ -75,7 +77,7 @@ const PotholeDetailsPage: React.FC = () => {
     }
   }, [id, fetchPotholeDetails]);
 
-  // Main pothole upvote/un-upvote logic
+  // Main pothole upvote/un-upvote (existing logic)
   const handlePotholeUpvote = async () => {
     if (!userId) {
       toast.error("You need to be logged in to upvote.");
@@ -176,7 +178,7 @@ const PotholeDetailsPage: React.FC = () => {
     router.push(`/report-repaired?potholeId=${id}`);
   };
 
-  // --- Repair Report Upvote/Downvote Handlers ---
+  // --- NEW: Repair Report Upvote/Downvote Handlers ---
   const handleRepairReportUpvote = async () => {
     if (!userId) {
       toast.error("You need to be logged in to vote on repair reports.");
@@ -226,8 +228,7 @@ const PotholeDetailsPage: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        // Send undefined if comment is null or empty after trim, to match API's optional field
-        body: JSON.stringify({ comment: userComment?.trim() || undefined }),
+        body: JSON.stringify({ comment: userComment || undefined }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -390,8 +391,8 @@ const PotholeDetailsPage: React.FC = () => {
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  onClick={handlePotholeUpvote}
-                  disabled={isUpvotingPothole}
+                  onClick={handlePotholeUpvote} // Changed to handlePotholeUpvote
+                  disabled={isUpvotingPothole} // Changed to isUpvotingPothole
                   variant={hasUserUpvotedPothole ? "default" : "outline"}
                   className="flex-1"
                 >
@@ -502,8 +503,8 @@ const PotholeDetailsPage: React.FC = () => {
                 <CardContent>
                   <div className="flex flex-wrap gap-6">
                     <Button
-                      onClick={handlePotholeUpvote}
-                      disabled={isUpvotingPothole}
+                      onClick={handlePotholeUpvote} // Changed to handlePotholeUpvote
+                      disabled={isUpvotingPothole} // Changed to isUpvotingPothole
                       variant={hasUserUpvotedPothole ? "default" : "outline"}
                       size="lg"
                     >
@@ -790,36 +791,38 @@ const PotholeDetailsPage: React.FC = () => {
 
                   {pothole.repairReport.comment && <p className="text-gray-700 mb-4">{pothole.repairReport.comment}</p>}
 
-                  <div className="flex items-center justify-start gap-4 text-sm text-gray-600 mt-4"> {/* Changed justify-between to justify-start and added gap */}
-                    {/* Repair Report Upvote Button */}
-                    <Button
-                        onClick={handleRepairReportUpvote}
-                        disabled={isUpvotingRepairReport || isDownvotingRepairReport}
-                        variant={hasUserUpvotedRepairReport ? "default" : "outline"}
-                        className="flex items-center px-4 py-2" // Added padding for better click area
-                    >
-                        {isUpvotingRepairReport ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        ) : (
-                            <ThumbsUp className="h-4 w-4 mr-1" />
-                        )}
-                        {hasUserUpvotedRepairReport ? "Upvoted" : `${pothole.repairReport.upvotes?.length || 0} Upvotes`}
-                    </Button>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex items-center space-x-4">
+                        {/* Repair Report Upvote Button */}
+                        <Button
+                            onClick={handleRepairReportUpvote}
+                            disabled={isUpvotingRepairReport || isDownvotingRepairReport}
+                            variant={hasUserUpvotedRepairReport ? "default" : "outline"}
+                            className="flex items-center"
+                        >
+                            {isUpvotingRepairReport ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                                <ThumbsUp className="h-4 w-4 mr-1" />
+                            )}
+                            {hasUserUpvotedRepairReport ? "Upvoted" : `${pothole.repairReport.upvotes?.length || 0} Upvotes`}
+                        </Button>
 
-                    {/* Repair Report Downvote Button */}
-                    <Button
-                        onClick={handleRepairReportDownvote}
-                        disabled={isUpvotingRepairReport || isDownvotingRepairReport}
-                        variant={hasUserDownvotedRepairReport ? "destructive" : "outline"} // Use destructive for downvote
-                        className="flex items-center px-4 py-2" // Added padding for better click area
-                    >
-                        {isDownvotingRepairReport ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        ) : (
-                            <ThumbsDown className="h-4 w-4 mr-1" />
-                        )}
-                        {hasUserDownvotedRepairReport ? "Downvoted" : `${pothole.repairReport.downvotes?.length || 0} Downvotes`}
-                    </Button>
+                        {/* Repair Report Downvote Button */}
+                        <Button
+                            onClick={handleRepairReportDownvote}
+                            disabled={isUpvotingRepairReport || isDownvotingRepairReport}
+                            variant={hasUserDownvotedRepairReport ? "destructive" : "outline"} // Use destructive for downvote
+                            className="flex items-center"
+                        >
+                            {isDownvotingRepairReport ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                                <ThumbsDown className="h-4 w-4 mr-1" /> 
+                            )}
+                            {hasUserDownvotedRepairReport ? "Downvoted" : `${pothole.repairReport.downvotes?.length || 0} Downvotes`}
+                        </Button>
+                    </div>
                   </div>
                 </div>
               ) : (

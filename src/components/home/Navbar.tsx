@@ -9,26 +9,138 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MapPin, User, Settings, LogOut, Plus, Menu, Eye, FileText } from "lucide-react"
+import { MapPin, User, Settings, LogOut, Plus, Menu, Eye, FileText, LogIn } from "lucide-react"
 import Link from "next/link"
-import { signOut, useSession } from "next-auth/react"
+import { signOut, signIn, useSession } from "next-auth/react"
 import { useState } from "react"
 
 export default function Navbar() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
-  if (!session?.user) {
-    return null
-  }
-
-  const user = session.user
 
   const navigationItems = [
     { href: "/potholes", label: "View Potholes", icon: Eye },
     { href: "/pothole-report", label: "Report Pothole", icon: Plus },
     { href: "/reports", label: "My Reports", icon: FileText },
   ]
+
+  // Show loading state while session is being fetched
+  if (status === "loading") {
+    return (
+      <nav className="sticky top-0 z-50 bg-white border-b-2 border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="p-2 bg-black rounded-xl">
+                <MapPin className="h-6 w-6 text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-black">PAM</h1>
+                <p className="text-xs text-gray-600 -mt-1">Pothole Alert Map</p>
+              </div>
+            </Link>
+            <div className="animate-pulse">
+              <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    )
+  }
+
+  // Render navbar for unauthenticated users
+  if (!session?.user) {
+    return (
+      <nav className="sticky top-0 z-50 bg-white border-b-2 border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Brand Logo */}
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="p-2 bg-black rounded-xl">
+                <MapPin className="h-6 w-6 text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-black">PAM</h1>
+                <p className="text-xs text-gray-600 -mt-1">Pothole Alert Map</p>
+              </div>
+            </Link>
+
+            {/* Public Navigation - Desktop */}
+            <div className="hidden md:flex items-center gap-1">
+              <Link href="/potholes">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-black hover:bg-gray-100 hover:text-black font-medium"
+                >
+                  <Eye className="h-4 w-4" />
+                  View Potholes
+                </Button>
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="text-black hover:bg-gray-100"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Sign In Button - Desktop */}
+            <div className="hidden md:flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => signIn()}
+                className="gap-2 border-2 border-gray-300 hover:border-black hover:bg-black hover:text-white"
+              >
+                <LogIn className="h-4 w-4" />
+                Sign In
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200 py-4">
+              <div className="flex flex-col space-y-2">
+                <Link href="/potholes" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 text-black hover:bg-gray-100 font-medium"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Potholes
+                  </Button>
+                </Link>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 border-2 border-gray-300 hover:border-black hover:bg-black hover:text-white bg-transparent"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false)
+                      signIn()
+                    }}
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Sign In
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </nav>
+    )
+  }
+
+  // Render navbar for authenticated users (existing code)
+  const user = session.user
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b-2 border-gray-200">
@@ -138,7 +250,6 @@ export default function Navbar() {
                   </Link>
                 )
               })}
-
               <div className="border-t border-gray-200 pt-4 mt-4">
                 <div className="flex items-center gap-3 px-3 py-2">
                   <Avatar className="h-8 w-8 border border-gray-200">
@@ -152,19 +263,16 @@ export default function Navbar() {
                     <p className="text-xs text-gray-600">{user.email}</p>
                   </div>
                 </div>
-
                 <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start gap-3 text-black hover:bg-gray-100">
                     <User className="h-4 w-4" />
                     Profile
                   </Button>
                 </Link>
-
                 <Button variant="ghost" className="w-full justify-start gap-3 text-black hover:bg-gray-100">
                   <Settings className="h-4 w-4" />
                   Settings
                 </Button>
-
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-3 text-black hover:bg-red-50 hover:text-red-600"

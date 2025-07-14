@@ -1,24 +1,17 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "./api/auth/[...nextauth]/route"
-import { redirect } from "next/navigation"
-import Navbar from "@/components/home/Navbar"
-import MapSection from "@/components/home/MapSection"
-import PotholeFeed from "@/components/home/PotholeFeed"
+import MapSection from "@/components/home/MapSection";
+import { Toaster } from "sonner"; // Assuming you have sonner for toasts
 
-export default async function HomePage() {
-  const session = await getServerSession(authOptions)
-
-  if (!session || !session.user) {
-    redirect("/auth")
-  }
-
+export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <Navbar user={session.user} />
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        <MapSection />
-        <PotholeFeed />
-      </main>
-    </div>
-  )
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-8 lg:p-12">
+      <h1 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+        Pothole Map
+      </h1>
+      <div className="w-full max-w-5xl">
+        
+      </div>
+      <Toaster richColors />
+      <MapSection /> 
+    </main>
+  );
 }

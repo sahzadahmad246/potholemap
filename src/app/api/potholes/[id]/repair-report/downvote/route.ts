@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongo";
 import Pothole from "@/models/Pothole";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { Types } from "mongoose";
 import {IPotholeDocument} from "@/types/pothole";
 interface RepairReportVote {

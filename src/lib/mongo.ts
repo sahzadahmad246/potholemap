@@ -12,7 +12,7 @@ if (!MONGODB_DB) {
   throw new Error("MONGODB_DB is not set in environment variables");
 }
 
-let cached: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } = {
+const cached: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } = {
   conn: null,
   promise: null,
 };

@@ -9,89 +9,177 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MapPin, User, Settings, LogOut, Plus } from "lucide-react"
+import { MapPin, User, Settings, LogOut, Plus, Menu, Eye, FileText } from "lucide-react"
 import Link from "next/link"
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
+import { useState } from "react"
 
-interface NavbarProps {
-  user: {
-    name?: string | null
-    email?: string | null
-    image?: string | null
+export default function Navbar() {
+  const { data: session } = useSession()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  if (!session?.user) {
+    return null
   }
-}
 
-export default function Navbar({ user }: NavbarProps) {
+  const user = session.user
+
+  const navigationItems = [
+    { href: "/potholes", label: "View Potholes", icon: Eye },
+    { href: "/pothole-report", label: "Report Pothole", icon: Plus },
+    { href: "/reports", label: "My Reports", icon: FileText },
+  ]
+
   return (
-    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
+    <nav className="sticky top-0 z-50 bg-white border-b-2 border-gray-200">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
+            <div className="p-2 bg-black rounded-xl">
               <MapPin className="h-6 w-6 text-white" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                PAM
-              </h1>
-              <p className="text-xs text-muted-foreground -mt-1">Pothole Alert Map</p>
+              <h1 className="text-xl font-bold text-black">PAM</h1>
+              <p className="text-xs text-gray-600 -mt-1">Pothole Alert Map</p>
             </div>
           </Link>
 
-          {/* Center Actions */}
-          <div className="hidden md:flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-              <Plus className="h-4 w-4" />
-              Report Pothole
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-1">
+            {navigationItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-black hover:bg-gray-100 hover:text-black font-medium"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Button>
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="text-black hover:bg-gray-100"
+            >
+              <Menu className="h-5 w-5" />
             </Button>
           </div>
 
           {/* User Profile */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                <Avatar className="h-10 w-10 ring-2 ring-blue-100">
-                  <AvatarImage src={user.image || ""} alt={user.name || "User"} />
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">
-                    {user.name?.charAt(0) || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  {user.name && <p className="font-medium">{user.name}</p>}
-                  {user.email && <p className="w-[200px] truncate text-sm text-muted-foreground">{user.email}</p>}
+          <div className="hidden md:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-gray-100">
+                  <Avatar className="h-10 w-10 border-2 border-gray-200">
+                    <AvatarImage src={user.image || ""} alt={user.name || "User"} />
+                    <AvatarFallback className="bg-black text-white font-semibold">
+                      {user.name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 border-2 border-gray-200" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-3 bg-gray-50">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    {user.name && <p className="font-semibold text-black">{user.name}</p>}
+                    {user.email && <p className="w-[200px] truncate text-sm text-gray-600">{user.email}</p>}
+                  </div>
                 </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/profile" className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem className="md:hidden">
-                <Plus className="mr-2 h-4 w-4" />
-                Report Pothole
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer text-red-600 focus:text-red-600"
-                onClick={() => signOut({ callbackUrl: "/auth" })}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer text-black hover:bg-gray-100">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-black hover:bg-gray-100">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer text-black hover:bg-red-50 hover:text-red-600 focus:bg-red-50 focus:text-red-600"
+                  onClick={() => signOut({ callbackUrl: "/auth" })}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200 py-4">
+            <div className="flex flex-col space-y-2">
+              {navigationItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start gap-3 text-black hover:bg-gray-100 font-medium"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Button>
+                  </Link>
+                )
+              })}
+
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <Avatar className="h-8 w-8 border border-gray-200">
+                    <AvatarImage src={user.image || ""} alt={user.name || "User"} />
+                    <AvatarFallback className="bg-black text-white text-sm font-semibold">
+                      {user.name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-black text-sm">{user.name}</p>
+                    <p className="text-xs text-gray-600">{user.email}</p>
+                  </div>
+                </div>
+
+                <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start gap-3 text-black hover:bg-gray-100">
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Button>
+                </Link>
+
+                <Button variant="ghost" className="w-full justify-start gap-3 text-black hover:bg-gray-100">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 text-black hover:bg-red-50 hover:text-red-600"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false)
+                    signOut({ callbackUrl: "/auth" })
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   )

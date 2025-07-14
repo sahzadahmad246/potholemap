@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AuthProvider from "@/components/auth/AuthProvider";
 import { Toaster } from "sonner";
+import Navbar from "@/components/home/Navbar";
 export const metadata: Metadata = {
   title: "PotholeMap",
   description: "Track and report potholes in your city",
@@ -16,7 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          {" "}
+          <Navbar/>
           <Toaster richColors position="top-right" />
           {children}
         </AuthProvider>

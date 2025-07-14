@@ -1,12 +1,24 @@
+// src/app/api/potholes/[id]/spam/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongo";
 import Pothole from "@/models/Pothole";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth"; // Correctly importing from the dedicated utility file
 import { Types } from "mongoose";
-// import User from "@/models/User"; // Not directly used in this file's logic
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+// Define the RouteContext explicitly. This is crucial.
+interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
+// Change the function signature slightly to use the defined interface
+// and ensure `context` is clearly typed.
+export async function POST(req: NextRequest, context: RouteContext) { // <--- CHANGE IS HERE
+  const { id: potholeId } = context.params; // <--- Extract `id` directly here
+
   try {
     await connectDB();
 
@@ -16,8 +28,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const userId = new Types.ObjectId(session.user.id);
-    const potholeId = params.id;
 
+    // Use potholeId directly here
     if (!Types.ObjectId.isValid(potholeId)) {
       return NextResponse.json({ error: "Invalid Pothole ID format." }, { status: 400 });
     }
@@ -30,7 +42,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Pothole not found." }, { status: 404 });
     }
 
-    // Fix: Explicitly type `report` parameter
     const alreadyReported = pothole.spamReports.some(
       (report: { userId?: Types.ObjectId }) => report.userId && report.userId.equals(userId)
     );

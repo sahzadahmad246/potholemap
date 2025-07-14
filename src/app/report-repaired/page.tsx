@@ -1,866 +1,764 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useEffect, useState, useCallback } from "react";
-import Image from "next/image";
-import { toast, Toaster } from "sonner";
-import { useSession } from "next-auth/react";
-import { useParams, useRouter } from "next/navigation";
-import type { IPotholePopulated } from "@/types/pothole"; // Ensure this type has repairReport.upvotes and .downvotes populated with userId
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type React from "react"
+import { useState, useEffect, useRef, useCallback } from "react" // Import useCallback
+import { useRouter, useSearchParams } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { toast, Toaster } from "sonner"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import {
+  ArrowLeft,
+  Camera,
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
   MapPin,
   Calendar,
   User,
-  AlertTriangle,
-  ThumbsUp,
-  ThumbsDown, // Import ThumbsDown icon
-  Flag,
-  MessageCircle,
-  Ruler,
-  CheckCircle,
-  Twitter,
-  Loader2,
-  Camera,
-  Send,
-} from "lucide-react";
-import { CommentItem } from "@/components/potholes/comment-item";
+  Navigation,
+  RefreshCw,
+  X,
+  ExternalLink,
+} from "lucide-react"
 
-const PotholeDetailsPage: React.FC = () => {
-  const params = useParams();
-  const id = params.id as string;
-  const { data: session } = useSession();
-  const userId = session?.user?.id;
+interface PotholeBasicInfo {
+  _id: string
+  title: string
+  description: string
+  address: string
+  status: string
+  criticality: string
+  location: {
+    type: string
+    coordinates: [number, number]
+  }
+  reportedBy: {
+    name: string
+  }
+  reportedAt: Date
+}
 
-  const [pothole, setPothole] = useState<IPotholePopulated | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isUpvotingPothole, setIsUpvotingPothole] = useState(false); // Renamed to avoid confusion
-  const [isReportingSpam, setIsReportingSpam] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [isCommenting, setIsCommenting] = useState(false);
-  // New states for repair report voting
-  const [isUpvotingRepairReport, setIsUpvotingRepairReport] = useState(false);
-  const [isDownvotingRepairReport, setIsDownvotingRepairReport] = useState(false);
- 
+export default function ReportRepairedPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { data: session } = useSession() // `session` is used later in handleSubmit, so the warning might have been premature based on an older state. Let's keep it.
+  const potholeId = searchParams.get("potholeId")
+  const videoRef = useRef<HTMLVideoElement>(null)
 
-  const router = useRouter();
-
-  const fetchPotholeDetails = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/potholes/${id}`);
-      const data = await res.json();
-      if (res.ok) {
-        setPothole(data.data as IPotholePopulated);
-      } else {
-        setError(data.error || "Failed to fetch pothole details.");
-        toast.error(data.error || "Failed to fetch pothole details.");
-      }
-    } catch (err) {
-      console.error("Error fetching pothole details:", err);
-      setError("An unexpected error occurred.");
-      toast.error("An unexpected error occurred.");
-    } finally {
-      setLoading(false);
+  const [pothole, setPothole] = useState<PotholeBasicInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [comment, setComment] = useState("")
+  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [imageBlob, setImageBlob] = useState<Blob | null>(null)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [cameraLoading, setCameraLoading] = useState(false)
+  const [videoReady, setVideoReady] = useState(false)
+  const [locationVerified, setLocationVerified] = useState(false)
+  const [checkingLocation, setCheckingLocation] = useState(true)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [distance, setDistance] = useState<number | null>(null)
+console.log("userLocation", userLocation)
+  // Memoize verifyUserLocation to use in dependencies
+  const verifyUserLocation = useCallback(async (potholeData: PotholeBasicInfo) => {
+    setCheckingLocation(true)
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by this browser")
+      setCheckingLocation(false)
+      return
     }
-  }, [id]);
 
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude
+        const userLng = position.coords.longitude
+        const potholeLat = potholeData.location.coordinates[1]
+        const potholeLng = potholeData.location.coordinates[0]
+
+        setUserLocation({ lat: userLat, lng: userLng })
+        const distanceInMeters = calculateDistance(userLat, userLng, potholeLat, potholeLng)
+        setDistance(Math.round(distanceInMeters))
+
+        if (distanceInMeters <= 100) {
+          setLocationVerified(true)
+          toast.success("Location verified! You can now report the repair.")
+        } else {
+          setLocationVerified(false)
+          toast.error(
+            `You are ${Math.round(distanceInMeters)}m away from the pothole. You need to be within 100m to report repairs.`,
+          )
+        }
+        setCheckingLocation(false)
+      },
+      (error) => {
+        console.error("Error getting location:", error)
+        toast.error("Unable to get your location. Please enable location services.")
+        setCheckingLocation(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      },
+    )
+  }, []) // No dependencies needed for verifyUserLocation itself as it only reads props and sets state.
+
+  // Memoize fetchPotholeInfo to use in dependencies
+  const fetchPotholeInfo = useCallback(async () => {
+    if (!potholeId) {
+      // This check is duplicated, but useful here if called directly
+      toast.error("No pothole ID provided")
+      router.push("/")
+      return
+    }
+    try {
+      const res = await fetch(`/api/potholes/${potholeId}`)
+      const data = await res.json()
+      if (res.ok) {
+        setPothole(data.data)
+        // Ensure verifyUserLocation is called with the fetched data
+        verifyUserLocation(data.data)
+      } else {
+        toast.error("Failed to fetch pothole information")
+        router.push("/")
+      }
+    } catch (error) {
+      console.error("Error fetching pothole:", error)
+      toast.error("An error occurred")
+      router.push("/")
+    } finally {
+      setLoading(false)
+    }
+  }, [potholeId, router, verifyUserLocation]) // Add potholeId, router, and verifyUserLocation to dependencies
+
+  // --- useEffect for initial pothole data fetch ---
   useEffect(() => {
-    if (id) {
-      fetchPotholeDetails();
+    if (potholeId) {
+      fetchPotholeInfo()
+    } else {
+      toast.error("No pothole ID provided")
+      router.push("/")
     }
-  }, [id, fetchPotholeDetails]);
+  }, [potholeId, fetchPotholeInfo, router]) // Add fetchPotholeInfo and router to dependencies
 
-  // Main pothole upvote/un-upvote (existing logic)
-  const handlePotholeUpvote = async () => {
-    if (!userId) {
-      toast.error("You need to be logged in to upvote.");
-      return;
-    }
-    setIsUpvotingPothole(true);
-    try {
-      const res = await fetch(`/api/potholes/${id}/upvote`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        fetchPotholeDetails();
-      } else {
-        toast.error(data.error || "Failed to upvote/un-upvote.");
+  // --- useEffect for camera stream cleanup ---
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop())
       }
-    } catch (error) {
-      console.error("Error upvoting pothole:", error);
-      toast.error("An error occurred while upvoting the pothole.");
-    } finally {
-      setIsUpvotingPothole(false);
     }
-  };
+  }, [cameraStream])
 
-  const handleSpamReport = async () => {
-    if (!userId) {
-      toast.error("You need to be logged in to report spam.");
-      return;
-    }
-    setIsReportingSpam(true);
-    try {
-      const res = await fetch(`/api/potholes/${id}/spam-report`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ image: "", comment: "" }), // Consider allowing image/comment for spam reports too
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        fetchPotholeDetails();
-      } else {
-        toast.error(data.message || data.error || "Failed to report spam.");
-      }
-    } catch (error) {
-      console.error("Error reporting spam:", error);
-      toast.error("An error occurred while reporting spam.");
-    } finally {
-      setIsReportingSpam(false);
-    }
-  };
-
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) {
-      toast.error("You need to be logged in to comment.");
-      return;
-    }
-    if (commentText.trim().length === 0) {
-      toast.error("Comment cannot be empty.");
-      return;
-    }
-    if (commentText.length > 200) {
-      toast.error("Comment cannot exceed 200 characters.");
-      return;
-    }
-    setIsCommenting(true);
-    try {
-      const res = await fetch(`/api/potholes/${id}/comment`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ comment: commentText }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        setCommentText("");
-        fetchPotholeDetails();
-      } else {
-        toast.error(data.error || "Failed to add comment.");
-      }
-    } catch (error) {
-      console.error("Error adding comment:", error);
-      toast.error("An error occurred while adding comment.");
-    } finally {
-      setIsCommenting(false);
-    }
-  };
-
-  const handleReportRepaired = () => {
-    router.push(`/report-repaired?potholeId=${id}`);
-  };
-
-  // --- NEW: Repair Report Upvote/Downvote Handlers ---
-  const handleRepairReportUpvote = async () => {
-    if (!userId) {
-      toast.error("You need to be logged in to vote on repair reports.");
-      return;
-    }
-    setIsUpvotingRepairReport(true);
-    try {
-      const res = await fetch(`/api/potholes/${id}/repair-report/upvote`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        fetchPotholeDetails(); // Re-fetch to update counts and button states
-      } else {
-        toast.error(data.error || "Failed to process upvote.");
-      }
-    } catch (error) {
-      console.error("Error upvoting repair report:", error);
-      toast.error("An error occurred while processing upvote.");
-    } finally {
-      setIsUpvotingRepairReport(false);
-    }
-  };
-
-  const handleRepairReportDownvote = async () => {
-    if (!userId) {
-      toast.error("You need to be logged in to vote on repair reports.");
-      return;
-    }
-
-    // You might want a modal or a prompt for the comment for downvotes
-    // For simplicity, let's use a prompt for now, but a proper UI modal is better.
-    const userComment = prompt("Optional: Enter a reason for downvoting (max 200 chars):");
-    if (userComment !== null && userComment.length > 200) {
-      toast.error("Downvote comment cannot exceed 200 characters.");
-      return;
-    }
-
-    setIsDownvotingRepairReport(true);
-    try {
-      const res = await fetch(`/api/potholes/${id}/repair-report/downvote`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ comment: userComment || undefined }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        fetchPotholeDetails(); // Re-fetch to update counts and button states
-      } else {
-        toast.error(data.error || "Failed to process downvote.");
-      }
-    } catch (error) {
-      console.error("Error downvoting repair report:", error);
-      toast.error("An error occurred while processing downvote.");
-    } finally {
-      setIsDownvotingRepairReport(false);
-    }
-  };
-  // --- END: Repair Report Upvote/Downvote Handlers ---
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">Loading pothole details...</p>
-        </div>
-      </div>
-    );
+  // --- Helper to calculate distance ---
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3
+    const φ1 = (lat1 * Math.PI) / 180
+    const φ2 = (lat2 * Math.PI) / 180
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="max-w-md mx-4">
-          <CardContent className="pt-6 text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600 text-lg">{error}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  // console.log("userLocation", userLocation) // Keep this if you need it for debugging, otherwise remove.
+
+  const openGoogleMapsNavigation = () => {
+    if (pothole) {
+      const lat = pothole.location.coordinates[1]
+      const lng = pothole.location.coordinates[0]
+      // Corrected Google Maps URL - use 'maps.google.com' for navigation via web, not 'googleusercontent.com'
+      // You might also want to encode the coordinates if they were part of a query string, but directly in path is fine.
+      // The `0{lat}` part seems like a typo, should probably be just `${lat}`
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+      window.open(url, "_blank")
+    }
   }
 
-  if (!pothole) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="max-w-md mx-4">
-          <CardContent className="pt-6 text-center">
-            <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 text-lg">Pothole not found.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  // Start camera - based on working LocationCameraSection
+  const startCamera = async () => {
+    setCameraLoading(true)
+    setVideoReady(false)
+
+    if (!videoRef.current) {
+      toast.error("Video element not found in DOM. This is an internal error.")
+      setCameraLoading(false)
+      return
+    }
+
+    const video = videoRef.current
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment",
+          width: { ideal: 720, min: 480 },
+          height: { ideal: 1280, min: 854 }, // 9:16 aspect ratio
+        },
+      })
+
+      setCameraStream(stream)
+      video.srcObject = stream
+
+      // Ensure old listeners are cleared to prevent multiple firings
+      // Use event listeners correctly and clean them up.
+      // No need to set to null, just add and remove as needed or ensure they don't fire multiple times.
+      // For simplicity, we'll ensure only one listener is active at a time by removing existing ones if any.
+      video.onloadedmetadata = () => {
+        console.log("Video metadata loaded.")
+        video
+          .play()
+          .then(() => {
+            console.log("Video playback started.")
+            setVideoReady(true)
+            setCameraLoading(false)
+            toast.success("Camera started successfully!")
+          })
+          .catch((error) => {
+            console.error("Error playing video:", error)
+            let playErrorMsg = "Error starting video playback. " + (error instanceof DOMException ? error.message : "")
+            if (error.name === "NotAllowedError") {
+              playErrorMsg = "Playback denied. Ensure browser allows autoplay or user interaction."
+            } else if (error.name === "NotReadableError") {
+              playErrorMsg = "Video stream not readable. Camera might be in use elsewhere."
+            }
+            toast.error(playErrorMsg)
+            setCameraLoading(false)
+            stopCamera()
+          })
+      }
+
+      video.oncanplay = () => {
+        if (!videoReady) {
+          console.log("Video canplay event fired.")
+          video
+            .play()
+            .then(() => {
+              setVideoReady(true)
+              setCameraLoading(false)
+              toast.success("Camera started successfully!")
+            })
+            .catch((error) => {
+              console.error("Error playing video from oncanplay:", error)
+              toast.error("Error starting video playback from oncanplay.")
+              setCameraLoading(false)
+              stopCamera()
+            })
+        }
+      }
+
+      video.onerror = (event) => {
+        console.error("Video element error:", event)
+        toast.error("An error occurred with the video stream.")
+        setCameraLoading(false)
+        stopCamera()
+      }
+
+      video.load()
+    } catch (error) {
+      console.error("Camera access error:", error)
+      let errorMessage = "Unable to access camera. Please check permissions."
+
+      if (error instanceof DOMException) {
+        if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+          errorMessage = "Camera access denied. Please grant permission in your browser settings."
+        } else if (error.name === "NotFoundError") {
+          errorMessage = "No camera found on this device or it's unavailable."
+        } else if (error.name === "NotReadableError") {
+          errorMessage = "Camera is already in use by another application or device."
+        } else if (error.name === "OverconstrainedError") {
+          errorMessage = "Camera constraints not supported by device. Try different resolution settings."
+        }
+      }
+
+      toast.error(errorMessage)
+      setCameraStream(null)
+      setCameraLoading(false)
+    }
   }
 
-  // Determine if the current user has upvoted or downvoted the repair report
-  const hasUserUpvotedRepairReport = pothole.repairReport?.upvotes?.some(
-    (vote) => vote.userId?.toString() === userId
-  );
-  const hasUserDownvotedRepairReport = pothole.repairReport?.downvotes?.some(
-    (vote) => vote.userId?.toString() === userId
-  );
+  const stopCamera = () => {
+    if (cameraStream) {
+      console.log("Stopping camera stream...")
+      cameraStream.getTracks().forEach((track) => track.stop())
+      setCameraStream(null)
+      setVideoReady(false)
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+      videoRef.current.onloadedmetadata = null
+      videoRef.current.oncanplay = null
+      videoRef.current.onerror = null
+      videoRef.current.load()
+    }
+  }
 
-  const hasUserUpvotedPothole = pothole.upvotedBy?.some((user) => user._id?.toString() === userId);
-  const hasUserReportedSpam = pothole.spamReports?.some((report) => report.userId?._id?.toString() === userId);
+  const capturePhoto = () => {
+    if (!videoRef.current || !cameraStream || !videoReady) {
+      toast.error("Camera not ready. Please wait for the camera to load or start it.")
+      return
+    }
+
+    const video = videoRef.current
+    const canvas = document.createElement("canvas")
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error("Video stream has no dimensions. Cannot capture image. Try restarting camera.")
+      return
+    }
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext("2d")
+
+    if (!ctx) {
+      toast.error("Unable to get canvas context")
+      return
+    }
+
+    try {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+            const file = new File([blob], `repair-${timestamp}.jpg`, {
+              type: "image/jpeg",
+            })
+            setImageBlob(file)
+            const imageUrl = URL.createObjectURL(file)
+            setCapturedImage(imageUrl)
+            stopCamera()
+            toast.success("Photo captured successfully!")
+          } else {
+            toast.error("Failed to capture image: Blob creation failed.")
+          }
+        },
+        "image/jpeg",
+        0.9,
+      )
+    } catch (error) {
+      console.error("Error capturing image:", error)
+      toast.error("Failed to capture image due to rendering error.")
+    }
+  }
+
+  const retakePhoto = () => {
+    setCapturedImage(null)
+    setImageBlob(null)
+    startCamera()
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!session?.user?.id) {
+      toast.error("You need to be logged in to report repairs")
+      return
+    }
+    if (!locationVerified) {
+      toast.error("You need to be at the pothole location to report repairs")
+      return
+    }
+    if (!imageBlob) {
+      toast.error("Please capture a photo of the repaired pothole")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const formData = new FormData()
+      formData.append("image", imageBlob, "repair-photo.jpg")
+      formData.append("comment", comment.trim())
+
+      const res = await fetch(`/api/potholes/${potholeId}/repair-report`, {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        toast.success("Repair report submitted successfully!")
+        router.push(`/potholes/${potholeId}`)
+      } else {
+        toast.error(data.error || "Failed to submit repair report")
+      }
+    } catch (error) {
+      console.error("Error submitting repair report:", error)
+      toast.error("An error occurred while submitting the report")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case "reported":
-        return "bg-yellow-100 text-yellow-800";
+      case "active":
+        return "bg-black text-white"
       case "in_progress":
-        return "bg-blue-100 text-blue-800";
+        return "bg-gray-800 text-white"
       case "repaired":
-        return "bg-green-100 text-green-800";
+        return "bg-gray-600 text-white"
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-400 text-white"
     }
-  };
+  }
 
   const getCriticalityColor = (criticality: string) => {
     switch (criticality?.toLowerCase()) {
       case "high":
-        return "bg-red-100 text-red-800";
+        return "bg-black text-white"
       case "medium":
-        return "bg-orange-100 text-orange-800";
+        return "bg-gray-700 text-white"
       case "low":
-        return "bg-green-100 text-green-800";
+        return "bg-gray-500 text-white"
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-400 text-white"
     }
-  };
+  }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Toaster />
-      <div className="container mx-auto px-4 py-6 lg:py-8">
-        {/* Mobile Layout */}
-        <div className="lg:hidden space-y-6">
-          {/* Header Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-gray-900">{pothole.title}</CardTitle>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Badge className={getStatusColor(pothole.status || "")}>{pothole.status?.replace(/_/g, " ")}</Badge>
-                <Badge className={getCriticalityColor(pothole.criticality || "")}>
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  {pothole.criticality}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-700 mb-4">{pothole.description}</p>
-
-              {/* Key Info */}
-              <div className="space-y-3">
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                  <span>{pothole.address}</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <User className="h-4 w-4 mr-2 text-gray-400" />
-                  <span>Reported by {pothole.reportedBy?.name || "N/A"}</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                  <span>{new Date(pothole.reportedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Images */}
-          {pothole.images && pothole.images.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center text-lg">
-                  <Camera className="h-5 w-5 mr-2" />
-                  Images ({pothole.images.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-4">
-                  {pothole.images.map((image, index) => (
-                    <div key={index} className="relative w-full h-64 rounded-lg overflow-hidden">
-                      <Image
-                        src={image.url || "/placeholder.svg"}
-                        alt={`${pothole.title} image ${index + 1}`}
-                        fill
-                        style={{ objectFit: "cover" }}
-                        className="transition-transform duration-300 hover:scale-105"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Action Buttons */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  onClick={handlePotholeUpvote} // Changed to handlePotholeUpvote
-                  disabled={isUpvotingPothole} // Changed to isUpvotingPothole
-                  variant={hasUserUpvotedPothole ? "default" : "outline"}
-                  className="flex-1"
-                >
-                  {isUpvotingPothole ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <ThumbsUp className="h-4 w-4 mr-2" />
-                  )}
-                  {isUpvotingPothole ? "Processing..." : `${pothole.upvotes} Upvotes`}
-                </Button>
-                <Button
-                  onClick={handleSpamReport}
-                  disabled={isReportingSpam || hasUserReportedSpam}
-                  variant="outline"
-                  className="flex-1 bg-transparent"
-                >
-                  {isReportingSpam ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Flag className="h-4 w-4 mr-2" />
-                  )}
-                  {isReportingSpam
-                    ? "Reporting..."
-                    : hasUserReportedSpam
-                      ? "Spam Reported"
-                      : `Report Spam (${pothole.spamReportCount})`}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {pothole.area && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Area</p>
-                  <p className="text-base text-gray-900">{pothole.area}</p>
-                </div>
-              )}
-
-              {pothole.dimensions && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-2">Dimensions</p>
-                  <div className="flex items-center space-x-4 text-sm">
-                    {pothole.dimensions.length !== undefined && (
-                      <div className="flex items-center">
-                        <Ruler className="h-4 w-4 mr-1 text-gray-400" />
-                        <span>L: {pothole.dimensions.length}m</span>
-                      </div>
-                    )}
-                    {pothole.dimensions.width !== undefined && (
-                      <div className="flex items-center">
-                        <Ruler className="h-4 w-4 mr-1 text-gray-400" />
-                        <span>W: {pothole.dimensions.width}m</span>
-                      </div>
-                    )}
-                    {pothole.dimensions.depth !== undefined && (
-                      <div className="flex items-center">
-                        <Ruler className="h-4 w-4 mr-1 text-gray-400" />
-                        <span>D: {pothole.dimensions.depth}m</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {pothole.repairedAt && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Repaired On</p>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                    <span className="text-base text-gray-900">{new Date(pothole.repairedAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+  if (loading || checkingLocation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-black mx-auto mb-4" />
+          <p className="text-lg text-gray-600">
+            {loading ? "Loading pothole information..." : "Verifying your location..."}
+          </p>
         </div>
+      </div>
+    )
+  }
 
-        {/* Desktop Layout */}
-        <div className="hidden lg:block">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Header */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-3xl font-bold text-gray-900 mb-2">{pothole.title}</CardTitle>
-                      <p className="text-gray-700 text-lg mb-4">{pothole.description}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge className={getStatusColor(pothole.status || "")}>
-                          {pothole.status?.replace(/_/g, " ")}
-                        </Badge>
-                        <Badge className={getCriticalityColor(pothole.criticality || "")}>
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          {pothole.criticality}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-6">
-                    <Button
-                      onClick={handlePotholeUpvote} // Changed to handlePotholeUpvote
-                      disabled={isUpvotingPothole} // Changed to isUpvotingPothole
-                      variant={hasUserUpvotedPothole ? "default" : "outline"}
-                      size="lg"
-                    >
-                      {isUpvotingPothole ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <ThumbsUp className="h-4 w-4 mr-2" />
-                      )}
-                      {isUpvotingPothole ? "Processing..." : `${pothole.upvotes} Upvotes`}
-                    </Button>
-                    <Button
-                      onClick={handleSpamReport}
-                      disabled={isReportingSpam || hasUserReportedSpam}
-                      variant="outline"
-                      size="lg"
-                    >
-                      {isReportingSpam ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Flag className="h-4 w-4 mr-2" />
-                      )}
-                      {isReportingSpam
-                        ? "Reporting..."
-                        : hasUserReportedSpam
-                          ? "Spam Reported"
-                          : `Report Spam (${pothole.spamReportCount})`}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+  if (!pothole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center max-w-md mx-4">
+          <AlertTriangle className="h-16 w-16 text-black mx-auto mb-4" />
+          <p className="text-black text-lg font-medium">Pothole not found</p>
+        </div>
+      </div>
+    )
+  }
 
-              {/* Images */}
-              {pothole.images && pothole.images.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Camera className="h-5 w-5 mr-2" />
-                      Images ({pothole.images.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      {pothole.images.map((image, index) => (
-                        <div key={index} className="relative w-full h-64 rounded-lg overflow-hidden">
-                          <Image
-                            src={image.url || "/placeholder.svg"}
-                            alt={`${pothole.title} image ${index + 1}`}
-                            fill
-                            style={{ objectFit: "cover" }}
-                            className="transition-transform duration-300 hover:scale-105"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+  if (!locationVerified) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Toaster />
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Key Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-3 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Address</p>
-                      <p className="text-sm text-gray-900">{pothole.address}</p>
-                    </div>
-                  </div>
-
-                  {pothole.area && (
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-3 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Area</p>
-                        <p className="text-sm text-gray-900">{pothole.area}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center">
-                    <User className="h-4 w-4 mr-3 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Reported By</p>
-                      <p className="text-sm text-gray-900">{pothole.reportedBy?.name || "N/A"}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-3 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Reported On</p>
-                      <p className="text-sm text-gray-900">{new Date(pothole.reportedAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-
-                  {pothole.dimensions && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 mb-2">Dimensions</p>
-                      <div className="space-y-1">
-                        {pothole.dimensions.length !== undefined && (
-                          <div className="flex items-center text-sm">
-                            <Ruler className="h-3 w-3 mr-2 text-gray-400" />
-                            <span>Length: {pothole.dimensions.length}m</span>
-                          </div>
-                        )}
-                        {pothole.dimensions.width !== undefined && (
-                          <div className="flex items-center text-sm">
-                            <Ruler className="h-3 w-3 mr-2 text-gray-400" />
-                            <span>Width: {pothole.dimensions.width}m</span>
-                          </div>
-                        )}
-                        {pothole.dimensions.depth !== undefined && (
-                          <div className="flex items-center text-sm">
-                            <Ruler className="h-3 w-3 mr-2 text-gray-400" />
-                            <span>Depth: {pothole.dimensions.depth}m</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {pothole.repairedAt && (
-                    <div className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-3 text-green-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Repaired On</p>
-                        <p className="text-sm text-gray-900">{new Date(pothole.repairedAt).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Tagged Officials */}
-              {pothole.taggedOfficials && pothole.taggedOfficials.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Tagged Officials</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {pothole.taggedOfficials.map((official, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-gray-900 capitalize">{official.role}</p>
-                            {official.name && <p className="text-sm text-gray-600">{official.name}</p>}
-                          </div>
-                          {official.twitterHandle && (
-                            <a
-                              href={`https://twitter.com/${official.twitterHandle}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:text-blue-600"
-                            >
-                              <Twitter className="h-4 w-4" />
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+        {/* Header */}
+        <div className="border-b border-gray-200">
+          <div className="container mx-auto px-4 py-4">
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center text-black hover:text-gray-600 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              <span className="font-medium">Back</span>
+            </button>
           </div>
         </div>
 
-        {/* Comments and Repair Section */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Comments Section */}
-          <Card className="lg:order-1">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MessageCircle className="h-5 w-5 mr-2" />
-                Comments ({pothole.comments.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Add Comment Form */}
-              <form onSubmit={handleAddComment} className="mb-6">
-                <Textarea
-                  placeholder="Add a comment..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  maxLength={200}
-                  className="mb-3"
-                  rows={3}
-                />
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">{commentText.length}/200 characters</span>
-                  <Button type="submit" disabled={isCommenting || commentText.trim().length === 0}>
-                    {isCommenting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4 mr-2" />
-                    )}
-                    {isCommenting ? "Posting..." : "Post Comment"}
-                  </Button>
-                </div>
-              </form>
+        <div className="container mx-auto px-4 py-8 max-w-md">
+          <div className="bg-gray-50 rounded-3xl p-8 border border-gray-200 text-center">
+            <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 border border-gray-200">
+              <Navigation className="h-10 w-10 text-gray-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-black mb-4">Location Verification Required</h3>
+            <p className="text-gray-600 mb-6">You need to be within 100 meters of the pothole to report repairs.</p>
 
-              <Separator className="mb-6" />
+            {distance && (
+              <div className="bg-white rounded-2xl p-4 mb-6 border border-gray-200">
+                <p className="text-sm text-gray-500">Current distance</p>
+                <p className="text-2xl font-bold text-black">{distance}m</p>
+              </div>
+            )}
 
-              {/* Comments List */}
-              <div className="max-h-96 lg:max-h-[500px] overflow-y-auto">
-                {pothole.comments.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                      <MessageCircle className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
-                    <p className="text-gray-500">Be the first to share your thoughts about this pothole.</p>
-                  </div>
+            <div className="space-y-3">
+              <Button
+                onClick={() => verifyUserLocation(pothole)}
+                className="w-full bg-black hover:bg-gray-800 text-white"
+                disabled={checkingLocation}
+                size="lg"
+              >
+                {checkingLocation ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Checking Location...
+                  </>
                 ) : (
-                  <div className="space-y-3">
-                    {pothole.comments.map((comment, index) => (
-                      <CommentItem
-                        key={comment._id?.toString() || index}
-                        comment={comment}
-                        currentUserId={userId}
-                        potholeId={id}
-                        onCommentUpdated={fetchPotholeDetails}
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Location Check
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={openGoogleMapsNavigation}
+                variant="outline"
+                className="w-full border-2 border-gray-300 hover:border-black hover:bg-black hover:text-white bg-transparent"
+                size="lg"
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                Navigate to Pothole
+                <ExternalLink className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Toaster />
+
+      {/* Header */}
+      <div className="border-b border-gray-200">
+        <div className="container mx-auto px-4 py-4">
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center text-black hover:text-gray-600 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5 mr-2" />
+            <span className="font-medium">Back to Pothole Details</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Header Section */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl lg:text-4xl font-bold text-black mb-4">Report Pothole as Repaired</h1>
+          <p className="text-gray-600 text-lg mb-6">Help the community by confirming this pothole has been fixed</p>
+
+          <div className="inline-flex items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-200">
+            <CheckCircle className="h-4 w-4 text-gray-600 mr-2" />
+            <span className="text-sm font-medium text-black">Location Verified</span>
+            {distance && <span className="text-xs text-gray-500 ml-2">({distance}m away)</span>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Pothole Information */}
+          <div className="bg-gray-50 rounded-3xl p-6 lg:p-8 border border-gray-200">
+            <h2 className="text-2xl font-bold text-black mb-6">Pothole Information</h2>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-bold text-xl text-black mb-2">{pothole.title}</h3>
+                <p className="text-gray-700 leading-relaxed">{pothole.description}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Badge className={`${getStatusColor(pothole.status)} font-semibold px-3 py-1`}>
+                  {pothole.status?.replace(/_/g, " ").toUpperCase()}
+                </Badge>
+                <Badge className={`${getCriticalityColor(pothole.criticality)} font-semibold px-3 py-1`}>
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  {pothole.criticality?.toUpperCase()}
+                </Badge>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <div className="flex items-start">
+                  <MapPin className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-black">Address</p>
+                    <p className="text-gray-600 text-sm">{pothole.address}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <User className="h-5 w-5 text-gray-400 mr-3" />
+                  <div>
+                    <p className="font-semibold text-black">Reported by</p>
+                    <p className="text-gray-600 text-sm">{pothole.reportedBy?.name || "N/A"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 text-gray-400 mr-3" />
+                  <div>
+                    <p className="font-semibold text-black">Reported on</p>
+                    <p className="text-gray-600 text-sm">{new Date(pothole.reportedAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Report Form */}
+          <div className="bg-gray-50 rounded-3xl p-6 lg:p-8 border border-gray-200">
+            <h2 className="text-2xl font-bold text-black mb-6 flex items-center">
+              <CheckCircle className="h-6 w-6 mr-3 text-gray-600" />
+              Submit Repair Report
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Camera Section */}
+              <div>
+                <label className="block text-sm font-semibold text-black mb-3">
+                  Capture Photo of Repaired Pothole *
+                </label>
+
+                {!capturedImage && !cameraStream && (
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center bg-white">
+                    <div className="bg-gray-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 border border-gray-200">
+                      <Camera className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-600 mb-4 font-medium">Take a photo of the repaired pothole</p>
+                    <p className="text-gray-500 text-sm mb-6">Photo will be captured in mobile format (9:16 ratio)</p>
+                    <Button
+                      type="button"
+                      onClick={startCamera}
+                      className="bg-black hover:bg-gray-800 text-white"
+                      disabled={cameraLoading}
+                      size="lg"
+                    >
+                      {cameraLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Starting Camera...
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="h-4 w-4 mr-2" />
+                          Open Camera
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Camera View */}
+                {cameraStream && (
+                  <Card className="border-2 border-gray-300">
+                    <CardContent className="p-4">
+                      <div
+                        className="relative bg-black rounded-lg overflow-hidden mx-auto"
+                        style={{ aspectRatio: "9/16", maxWidth: "300px" }}
+                      >
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-full object-cover"
+                          style={{
+                            display: "block",
+                            backgroundColor: "#000",
+                          }}
+                        />
+                        {!videoReady && cameraStream && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                            <div className="text-white text-center">
+                              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                              <p>Loading camera...</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-4 justify-center">
+                        <Button
+                          type="button"
+                          onClick={capturePhoto}
+                          disabled={!videoReady}
+                          className="bg-black hover:bg-gray-800 text-white"
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          {videoReady ? "Capture Photo" : "Camera Loading..."}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={stopCamera}
+                          variant="outline"
+                          className="border-2 border-gray-300 hover:border-black hover:bg-black hover:text-white bg-transparent"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Close Camera
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {capturedImage && (
+                  <div className="space-y-4">
+                    <div
+                      className="relative mx-auto rounded-2xl overflow-hidden border-2 border-gray-200"
+                      style={{ aspectRatio: "9/16", maxWidth: "300px" }}
+                    >
+                      <Image
+                        src={capturedImage || "/placeholder.svg?height=400&width=225"}
+                        alt="Captured repair photo"
+                        fill
+                        className="object-cover"
                       />
-                    ))}
+                    </div>
+                    <div className="text-center">
+                      <Button
+                        type="button"
+                        onClick={retakePhoto}
+                        variant="outline"
+                        className="border-2 border-gray-300 hover:border-black hover:bg-black hover:text-white bg-transparent"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Retake Photo
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Repair Section */}
-          <Card className="lg:order-2">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                {pothole.status?.toLowerCase() === "repaired" ? (
+              {/* Comment */}
+              <div>
+                <label className="block text-sm font-semibold text-black mb-3">Additional Comments (Optional)</label>
+                <Textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Describe the repair work or any additional details..."
+                  rows={4}
+                  maxLength={500}
+                  className="border-2 border-gray-200 focus:border-black resize-none rounded-2xl"
+                />
+                <p className="text-sm text-gray-500 mt-2">{comment.length}/500 characters</p>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={submitting || !capturedImage}
+                className="w-full bg-black hover:bg-gray-800 text-white font-semibold"
+                size="lg"
+              >
+                {submitting ? (
                   <>
-                    <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
-                    Repair Report
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting Report...
                   </>
                 ) : (
                   <>
-                    <AlertTriangle className="h-5 w-5 mr-2 text-orange-600" />
-                    Repair Status
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Submit Repair Report
                   </>
                 )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pothole.status?.toLowerCase() === "repaired" && pothole.repairReport ? (
-                /* Existing Repair Report Content */
-                <div className="bg-green-50 p-6 rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarImage src={pothole.repairReport.submittedBy?.image || "/placeholder.svg"} />
-                        <AvatarFallback>{pothole.repairReport.submittedBy?.name?.charAt(0) || "U"}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-gray-900">{pothole.repairReport.submittedBy?.name || "N/A"}</p>
-                        <p className="text-sm text-gray-600">
-                          {pothole.repairReport.submittedAt &&
-                            new Date(pothole.repairReport.submittedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+              </Button>
 
-                  {pothole.repairReport.image && (
-                    <div className="relative w-full h-48 lg:h-64 mb-4 rounded-lg overflow-hidden">
-                      <Image
-                        src={pothole.repairReport.image || "/placeholder.svg"}
-                        alt="Repair report image"
-                        fill
-                        style={{ objectFit: "cover" }}
-                      />
-                    </div>
-                  )}
-
-                  {pothole.repairReport.comment && <p className="text-gray-700 mb-4">{pothole.repairReport.comment}</p>}
-
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex items-center space-x-4">
-                        {/* Repair Report Upvote Button */}
-                        <Button
-                            onClick={handleRepairReportUpvote}
-                            disabled={isUpvotingRepairReport || isDownvotingRepairReport}
-                            variant={hasUserUpvotedRepairReport ? "default" : "outline"}
-                            className="flex items-center"
-                        >
-                            {isUpvotingRepairReport ? (
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                            ) : (
-                                <ThumbsUp className="h-4 w-4 mr-1" />
-                            )}
-                            {hasUserUpvotedRepairReport ? "Upvoted" : `${pothole.repairReport.upvotes?.length || 0} Upvotes`}
-                        </Button>
-
-                        {/* Repair Report Downvote Button */}
-                        <Button
-                            onClick={handleRepairReportDownvote}
-                            disabled={isUpvotingRepairReport || isDownvotingRepairReport}
-                            variant={hasUserDownvotedRepairReport ? "destructive" : "outline"} // Use destructive for downvote
-                            className="flex items-center"
-                        >
-                            {isDownvotingRepairReport ? (
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                            ) : (
-                                <ThumbsDown className="h-4 w-4 mr-1" /> 
-                            )}
-                            {hasUserDownvotedRepairReport ? "Downvoted" : `${pothole.repairReport.downvotes?.length || 0} Downvotes`}
-                        </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Report Repaired Section */
-                <div className="text-center py-8">
-                  <div className="bg-orange-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                    <AlertTriangle className="h-8 w-8 text-orange-600" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Pothole Not Yet Repaired</h3>
-                  <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-                    Have you noticed this pothole has been fixed? Help the community by reporting the repair.
-                  </p>
-                  <Button
-                    onClick={handleReportRepaired}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    size="lg"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Report This Pothole as Repaired
-                  </Button>
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      <strong>Current Status:</strong> {pothole.status?.replace(/_/g, " ") || "Unknown"}
-                    </p>
-                    {pothole.reportedAt && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        <strong>Reported:</strong> {new Date(pothole.reportedAt).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              <p className="text-sm text-gray-600 text-center">
+                Your report will be reviewed by the community and local authorities
+              </p>
+            </form>
+          </div>
         </div>
       </div>
     </div>
-  );
-};
-
-export default PotholeDetailsPage;
+  )
+}

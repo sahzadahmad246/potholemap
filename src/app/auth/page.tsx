@@ -5,12 +5,18 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { FcGoogle } from "react-icons/fc";
 import { MapPin, Shield, Users } from "lucide-react";
 
 export default function AuthPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   // Redirect to /profile if user is authenticated
@@ -62,7 +68,8 @@ export default function AuthPage() {
                 Welcome Back
               </CardTitle>
               <CardDescription className="text-base text-muted-foreground">
-                Sign in to continue reporting and tracking road issues in your community
+                Sign in to continue reporting and tracking road issues in your
+                community
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -78,11 +85,17 @@ export default function AuthPage() {
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">
                   By signing in, you agree to our{" "}
-                  <a href="#" className="underline hover:text-blue-600 transition-colors">
+                  <a
+                    href="#"
+                    className="underline hover:text-blue-600 transition-colors"
+                  >
                     Terms of Service
                   </a>{" "}
                   and{" "}
-                  <a href="#" className="underline hover:text-blue-600 transition-colors">
+                  <a
+                    href="#"
+                    className="underline hover:text-blue-600 transition-colors"
+                  >
                     Privacy Policy
                   </a>
                 </p>
@@ -93,15 +106,22 @@ export default function AuthPage() {
           {/* Features Cards */}
           <div className="grid gap-3">
             {features.map((feature, index) => (
-              <Card key={index} className="border-0 shadow-md bg-white/70 backdrop-blur-sm">
+              <Card
+                key={index}
+                className="border-0 shadow-md bg-white/70 backdrop-blur-sm"
+              >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-100 rounded-lg">
                       <feature.icon className="h-5 w-5 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-sm text-gray-900">{feature.title}</h3>
-                      <p className="text-xs text-muted-foreground">{feature.description}</p>
+                      <h3 className="font-semibold text-sm text-gray-900">
+                        {feature.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {feature.description}
+                      </p>
                     </div>
                   </div>
                 </CardContent>

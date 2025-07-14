@@ -4,7 +4,7 @@
 import type React from "react"
 import { useState } from "react"
 import axios, { AxiosError } from "axios"
-import { toast, Toaster } from "sonner"
+import { toast} from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, Send, Loader2 } from "lucide-react"
@@ -19,9 +19,6 @@ interface FormData {
   address: string
   area: string
   criticality: "low" | "medium" | "high"
-  // comment: string; // Removed as per request
-  jurisdiction: string
-  jurisdictionTwitterHandle: string
   dimensions: { length: string; width: string; depth: string }
   taggedOfficials: { role: string; name: string; twitterHandle: string }[]
 }
@@ -34,9 +31,6 @@ export default function PotholeReportForm() {
     address: "",
     area: "",
     criticality: "medium",
-    // comment: "", // Removed as per request
-    jurisdiction: "",
-    jurisdictionTwitterHandle: "",
     dimensions: { length: "", width: "", depth: "" },
     taggedOfficials: [{ role: "", name: "", twitterHandle: "" }],
   })
@@ -72,9 +66,7 @@ export default function PotholeReportForm() {
 
     if (formData.area) data.append("area", formData.area)
     if (formData.criticality) data.append("criticality", formData.criticality)
-    // if (formData.comment) data.append("comment", formData.comment); // Removed
-    if (formData.jurisdiction) data.append("jurisdiction", formData.jurisdiction)
-    if (formData.jurisdictionTwitterHandle) data.append("jurisdictionTwitterHandle", formData.jurisdictionTwitterHandle)
+    
 
     if (formData.dimensions.length || formData.dimensions.width || formData.dimensions.depth) {
       data.append(
@@ -107,9 +99,6 @@ export default function PotholeReportForm() {
         address: "",
         area: "",
         criticality: "medium",
-        // comment: "", // Removed
-        jurisdiction: "",
-        jurisdictionTwitterHandle: "",
         dimensions: { length: "", width: "", depth: "" },
         taggedOfficials: [{ role: "", name: "", twitterHandle: "" }],
       })
@@ -124,7 +113,7 @@ export default function PotholeReportForm() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
-      <Toaster richColors position="top-center" />
+      
 
       <Card>
         <CardHeader>

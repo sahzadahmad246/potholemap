@@ -14,8 +14,6 @@ interface PotholeDetailsFormProps {
     title: string;
     description: string;
     criticality: "low" | "medium" | "high";
-    jurisdiction: string;
-    jurisdictionTwitterHandle: string;
     dimensions: { length: string; width: string; depth: string };
     taggedOfficials: { role: string; name: string; twitterHandle: string }[];
   };
@@ -204,27 +202,7 @@ export default function PotholeDetailsForm({ formData, onFormDetailsChange }: Po
         </CardContent>
       </Card>
 
-      {/* Jurisdiction */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="jurisdiction">Jurisdiction</Label>
-          <Input
-            id="jurisdiction"
-            value={formData.jurisdiction}
-            onChange={(e) => onFormDetailsChange({ jurisdiction: e.target.value })}
-            placeholder="Municipal corporation, city council, etc."
-          />
-        </div>
-        <div>
-          <Label htmlFor="jurisdictionTwitter">Jurisdiction Twitter Handle</Label>
-          <Input
-            id="jurisdictionTwitter"
-            value={formData.jurisdictionTwitterHandle}
-            onChange={(e) => onFormDetailsChange({ jurisdictionTwitterHandle: e.target.value })}
-            placeholder="@citycouncil"
-          />
-        </div>
-      </div>
+     
 
       {/* Tagged Officials */}
       <Card>

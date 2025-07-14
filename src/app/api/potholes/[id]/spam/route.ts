@@ -1,23 +1,14 @@
-// src/app/api/potholes/[id]/spam/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongo";
 import Pothole from "@/models/Pothole";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth"; // Correctly importing from the dedicated utility file
+import { authOptions } from "@/lib/auth";
 import { Types } from "mongoose";
 
-// Define the RouteContext explicitly. This is crucial.
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
-// Change the function signature slightly to use the defined interface
-// and ensure `context` is clearly typed.
-export async function POST(req: NextRequest, context: RouteContext) { // <--- CHANGE IS HERE
-  const { id: potholeId } = context.params; // <--- Extract `id` directly here
+// Ensure the POST function is typed correctly for Next.js dynamic routes
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // Await the params to resolve the Promise
+  const { id: potholeId } = await context.params;
 
   try {
     await connectDB();
@@ -29,7 +20,6 @@ export async function POST(req: NextRequest, context: RouteContext) { // <--- CH
 
     const userId = new Types.ObjectId(session.user.id);
 
-    // Use potholeId directly here
     if (!Types.ObjectId.isValid(potholeId)) {
       return NextResponse.json({ error: "Invalid Pothole ID format." }, { status: 400 });
     }
@@ -67,7 +57,7 @@ export async function POST(req: NextRequest, context: RouteContext) { // <--- CH
     );
 
     if (updatedPothole && updatedPothole.spamReportCount >= 5 && updatedPothole.status === "active") {
-        await Pothole.findByIdAndUpdate(potholeId, { status: "under_review" });
+      await Pothole.findByIdAndUpdate(potholeId, { status: "under_review" });
     }
 
     return NextResponse.json({ message: "Pothole reported as spam successfully.", pothole: updatedPothole }, { status: 200 });

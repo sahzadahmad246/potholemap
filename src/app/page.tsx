@@ -1,5 +1,6 @@
-import MapSection from "@/components/home/MapSection";
-import { Toaster } from "sonner"; // Assuming you have sonner for toasts
+// src/app/page.tsx
+import { Toaster } from "sonner";
+import MapSectionWrapper from "@/components/home/MapSectionWrapper";
 
 export default function HomePage() {
   return (
@@ -8,10 +9,10 @@ export default function HomePage() {
         Pothole Map
       </h1>
       <div className="w-full max-w-5xl">
-        
+        {/* Add other content here if needed */}
       </div>
       <Toaster richColors />
-      <MapSection /> 
+      <MapSectionWrapper />
     </main>
   );
 }

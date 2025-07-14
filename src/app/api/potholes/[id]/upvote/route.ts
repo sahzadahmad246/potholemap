@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongo";
 import Pothole from "@/models/Pothole";
-// import User from "@/models/User"; // Not directly used in this file's logic
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { Types } from "mongoose";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+// Define RouteContext to match Next.js expectations
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await connectDB();
 
@@ -16,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const userId = new Types.ObjectId(session.user.id);
-    const potholeId = params.id;
+    const { id: potholeId } = await context.params;
 
     if (!Types.ObjectId.isValid(potholeId)) {
       return NextResponse.json({ error: "Invalid Pothole ID format." }, { status: 400 });

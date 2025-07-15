@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 import { CommentItem } from "@/components/potholes/comment-item"
 import Link from "next/link"
+import TweetButton from "@/components/potholes/tweet-button" // Import the new TweetButton
 
 const PotholeDetailsPage: React.FC = () => {
   const params = useParams()
@@ -308,9 +309,11 @@ const PotholeDetailsPage: React.FC = () => {
     )
   }
 
-  const hasUserUpvotedRepairReport = pothole.repairReport?.upvotes?.some((vote) => vote.userId?.toString() === userId)
+  const hasUserUpvotedRepairReport = pothole.repairReport?.upvotes?.some(
+    (vote) => vote.userId?._id?.toString() === userId,
+  )
   const hasUserDownvotedRepairReport = pothole.repairReport?.downvotes?.some(
-    (vote) => vote.userId?.toString() === userId,
+    (vote) => vote.userId?._id?.toString() === userId,
   )
   const hasUserUpvotedPothole = pothole.upvotedBy?.some((user) => user._id?.toString() === userId)
   const hasUserReportedSpam = pothole.spamReports?.some((report) => report.userId?._id?.toString() === userId)
@@ -575,6 +578,7 @@ const PotholeDetailsPage: React.FC = () => {
                     )}
                     {hasUserReportedSpam ? "Reported" : "Report Spam"}
                   </Button>
+                  {pothole && <TweetButton pothole={pothole} size="lg" />}
                 </div>
               </div>
               {/* Images */}

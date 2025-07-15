@@ -65,7 +65,7 @@ const MapPotholeDetailsCard: React.FC<MapPotholeDetailsCardProps> = ({ pothole, 
   }
 
   return (
-    <div className="bg-white border-2 border-gray-100 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 cursor-pointer group relative">
+    <div className="bg-white border-2 border-gray-100 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 group relative">
       {/* Close Button */}
       <button
         onClick={onClose}
@@ -74,55 +74,55 @@ const MapPotholeDetailsCard: React.FC<MapPotholeDetailsCardProps> = ({ pothole, 
       >
         <span className="text-gray-600 font-bold text-lg">×</span>
       </button>
-      {/* Content Section */}
-      <div className="p-6 pt-4">
-        {/* Status and Criticality Badges */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(pothole.status)}`}>
-            {pothole.status?.replace(/_/g, " ").toUpperCase()}
-          </span>
-          <span
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center ${getCriticalityColor(pothole.criticality)}`}
-          >
-            <AlertTriangle className="h-3 w-3 mr-1" />
-            {pothole.criticality?.toUpperCase()}
-          </span>
-        </div>
-        {/* Title and Description */}
-        <div className="mb-4">
-          <h3 className="text-xl font-bold text-black mb-1 line-clamp-1">{pothole.title}</h3>
-          <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">
-            {pothole.description || "No description provided."}
-          </p>
-        </div>
-        {/* Location */}
-        <div className="flex items-start mb-4">
-          <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-          <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed">{pothole.address}</p>
-        </div>
-        {/* Reporter and Date */}
-        <div className="flex items-center justify-between mb-6 text-xs text-gray-500">
-          <div className="flex items-center">
-            <Avatar className="h-8 w-8 flex-shrink-0">
-              <AvatarImage
-                src={pothole.reportedBy.image || "/placeholder.svg"}
-                alt={pothole.reportedBy.name || "Reporter"}
-              />
-              <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white text-sm">
-                {pothole.reportedBy.name ? pothole.reportedBy.name.charAt(0).toUpperCase() : "U"}
-              </AvatarFallback>
-            </Avatar>
-            <span className="ps-2 truncate">{pothole.reportedBy.name || "Anonymous"}</span>
+      {/* Content Section - now wrapped in Link */}
+      <Link href={`/potholes/${pothole._id}`} passHref className="block">
+        <div className="p-6 pt-4">
+          {/* Status and Criticality Badges */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(pothole.status)}`}>
+              {pothole.status?.replace(/_/g, " ").toUpperCase()}
+            </span>
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center ${getCriticalityColor(pothole.criticality)}`}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              {pothole.criticality?.toUpperCase()}
+            </span>
           </div>
-          <div className="flex items-center">
-            <Calendar className="h-3 w-3 mr-1" />
-            <span>{formatTimeAgo(new Date(pothole.reportedAt))}</span>
+          {/* Title and Description */}
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-black mb-1 line-clamp-1">{pothole.title}</h3>
+            <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">
+              {pothole.description || "No description provided."}
+            </p>
           </div>
-        </div>
-        {/* Action Buttons */}
-        <div className="flex justify-end">
-          {/* Google Maps Navigation Button */}
-          <Link href={`/potholes/${pothole._id}`} passHref>
+          {/* Location */}
+          <div className="flex items-start mb-4">
+            <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+            <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed">{pothole.address}</p>
+          </div>
+          {/* Reporter and Date */}
+          <div className="flex items-center justify-between mb-6 text-xs text-gray-500">
+            <div className="flex items-center">
+              <Avatar className="h-8 w-8 flex-shrink-0">
+                <AvatarImage
+                  src={pothole.reportedBy.image || "/placeholder.svg"}
+                  alt={pothole.reportedBy.name || "Reporter"}
+                />
+                <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white text-sm">
+                  {pothole.reportedBy.name ? pothole.reportedBy.name.charAt(0).toUpperCase() : "U"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="ps-2 truncate">{pothole.reportedBy.name || "Anonymous"}</span>
+            </div>
+            <div className="flex items-center">
+              <Calendar className="h-3 w-3 mr-1" />
+              <span>{formatTimeAgo(new Date(pothole.reportedAt))}</span>
+            </div>
+          </div>
+          {/* Action Buttons */}
+          <div className="flex justify-end">
+            {/* Google Maps Navigation Button */}
             <button
               onClick={handleGoogleMapsNavigation}
               className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
@@ -130,9 +130,9 @@ const MapPotholeDetailsCard: React.FC<MapPotholeDetailsCardProps> = ({ pothole, 
               <Navigation className="h-4 w-4 mr-2" />
               Navigate
             </button>
-          </Link>
+          </div>
         </div>
-      </div>
+      </Link>
     </div>
   )
 }

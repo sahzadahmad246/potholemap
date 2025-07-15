@@ -31,6 +31,7 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react"
 import { CommentItem } from "@/components/potholes/comment-item"
 import Link from "next/link"
@@ -50,6 +51,8 @@ const PotholeDetailsPage: React.FC = () => {
   const [isUpvotingRepairReport, setIsUpvotingRepairReport] = useState(false)
   const [isDownvotingRepairReport, setIsDownvotingRepairReport] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [showFullscreenImage, setShowFullscreenImage] = useState(false) // New state for fullscreen
+  const [fullscreenImageSrc, setFullscreenImageSrc] = useState<string | null>(null) // New state for fullscreen image src
   const router = useRouter()
 
   const fetchPotholeDetails = useCallback(async () => {
@@ -260,6 +263,18 @@ const PotholeDetailsPage: React.FC = () => {
     }
   }
 
+  // Function to open fullscreen image
+  const openFullscreen = (imageUrl: string) => {
+    setFullscreenImageSrc(imageUrl)
+    setShowFullscreenImage(true)
+  }
+
+  // Function to close fullscreen image
+  const closeFullscreen = () => {
+    setShowFullscreenImage(false)
+    setFullscreenImageSrc(null)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -329,7 +344,6 @@ const PotholeDetailsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <Toaster />
-
       {/* Navigation */}
       <div className="border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">
@@ -339,7 +353,6 @@ const PotholeDetailsPage: React.FC = () => {
           </Link>
         </div>
       </div>
-
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Mobile Layout */}
         <div className="lg:hidden space-y-8">
@@ -357,7 +370,6 @@ const PotholeDetailsPage: React.FC = () => {
             </div>
             <p className="text-gray-700 text-lg leading-relaxed mb-6">{pothole.description}</p>
           </div>
-
           {/* Images */}
           {pothole.images && pothole.images.length > 0 && (
             <div className="relative">
@@ -366,9 +378,9 @@ const PotholeDetailsPage: React.FC = () => {
                   src={pothole.images[currentImageIndex]?.url || "/placeholder.svg?height=400&width=600"}
                   alt={`${pothole.title} image ${currentImageIndex + 1}`}
                   fill
-                  className="object-cover"
+                  className="object-contain cursor-pointer" // Changed to object-contain and added cursor
+                  onClick={() => openFullscreen(pothole.images[currentImageIndex]?.url || "/placeholder.svg")}
                 />
-
                 {pothole.images.length > 1 && (
                   <>
                     <button
@@ -383,7 +395,6 @@ const PotholeDetailsPage: React.FC = () => {
                     >
                       <ChevronRight className="h-6 w-6" />
                     </button>
-
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
                       {pothole.images.map((_, index) => (
                         <button
@@ -403,7 +414,6 @@ const PotholeDetailsPage: React.FC = () => {
               </p>
             </div>
           )}
-
           {/* Quick Actions */}
           <div className="flex gap-3">
             <Button
@@ -423,12 +433,10 @@ const PotholeDetailsPage: React.FC = () => {
               )}
               {pothole.upvotes}
             </Button>
-
             <Button onClick={handleGoogleMapsNavigation} className="flex-1 bg-black hover:bg-gray-800 text-white">
               <Navigation className="h-4 w-4 mr-2" />
               Navigate
             </Button>
-
             <Button
               onClick={handleSpamReport}
               disabled={isReportingSpam || hasUserReportedSpam}
@@ -438,7 +446,6 @@ const PotholeDetailsPage: React.FC = () => {
               <Flag className="h-4 w-4" />
             </Button>
           </div>
-
           {/* Information Cards */}
           <div className="space-y-6">
             {/* Location Info */}
@@ -460,7 +467,6 @@ const PotholeDetailsPage: React.FC = () => {
                 )}
               </div>
             </div>
-
             {/* Report Info */}
             <div className="bg-gray-50 rounded-3xl p-6 border border-gray-200">
               <h3 className="text-xl font-bold text-black mb-4 flex items-center">
@@ -495,11 +501,19 @@ const PotholeDetailsPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+                {pothole.repairedAt && (
+                  <div className="flex items-center">
+                    <CheckCircle className="h-5 w-5 text-gray-600 mr-3" />
+                    <div>
+                      <p className="font-semibold text-black">Repaired On</p>
+                      <p className="text-gray-600 text-sm">{new Date(pothole.repairedAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-
         {/* Desktop Layout */}
         <div className="hidden lg:block">
           <div className="grid grid-cols-12 gap-8">
@@ -520,7 +534,6 @@ const PotholeDetailsPage: React.FC = () => {
                   </Badge>
                 </div>
                 <p className="text-gray-700 text-xl leading-relaxed mb-8">{pothole.description}</p>
-
                 <div className="flex gap-4">
                   <Button
                     onClick={handlePotholeUpvote}
@@ -540,7 +553,6 @@ const PotholeDetailsPage: React.FC = () => {
                     )}
                     {pothole.upvotes} Upvotes
                   </Button>
-
                   <Button
                     onClick={handleGoogleMapsNavigation}
                     size="lg"
@@ -549,7 +561,6 @@ const PotholeDetailsPage: React.FC = () => {
                     <Navigation className="h-4 w-4 mr-2" />
                     Navigate
                   </Button>
-
                   <Button
                     onClick={handleSpamReport}
                     disabled={isReportingSpam || hasUserReportedSpam}
@@ -566,7 +577,6 @@ const PotholeDetailsPage: React.FC = () => {
                   </Button>
                 </div>
               </div>
-
               {/* Images */}
               {pothole.images && pothole.images.length > 0 && (
                 <div className="bg-gray-50 rounded-3xl p-8 border border-gray-200">
@@ -574,16 +584,15 @@ const PotholeDetailsPage: React.FC = () => {
                     <Camera className="h-7 w-7 mr-3" />
                     Images ({pothole.images.length})
                   </h2>
-
                   <div className="relative">
                     <div className="relative w-full h-[500px] rounded-2xl overflow-hidden bg-white border-2 border-gray-200">
                       <Image
                         src={pothole.images[currentImageIndex]?.url || "/placeholder.svg?height=500&width=800"}
                         alt={`${pothole.title} image ${currentImageIndex + 1}`}
                         fill
-                        className="object-cover"
+                        className="object-contain cursor-pointer" // Changed to object-contain and added cursor
+                        onClick={() => openFullscreen(pothole.images[currentImageIndex]?.url || "/placeholder.svg")}
                       />
-
                       {pothole.images.length > 1 && (
                         <>
                           <button
@@ -601,7 +610,6 @@ const PotholeDetailsPage: React.FC = () => {
                         </>
                       )}
                     </div>
-
                     {pothole.images.length > 1 && (
                       <div className="flex justify-center mt-6 space-x-3">
                         {pothole.images.map((_, index) => (
@@ -615,7 +623,6 @@ const PotholeDetailsPage: React.FC = () => {
                         ))}
                       </div>
                     )}
-
                     <p className="text-center text-gray-500 mt-4">
                       {currentImageIndex + 1} of {pothole.images.length}
                     </p>
@@ -623,7 +630,6 @@ const PotholeDetailsPage: React.FC = () => {
                 </div>
               )}
             </div>
-
             {/* Sidebar */}
             <div className="col-span-4 space-y-6">
               {/* Key Information */}
@@ -637,7 +643,6 @@ const PotholeDetailsPage: React.FC = () => {
                       <p className="text-gray-600 text-sm leading-relaxed">{pothole.address}</p>
                     </div>
                   </div>
-
                   {pothole.area && (
                     <div className="flex items-center">
                       <MapPin className="h-5 w-5 text-gray-400 mr-3" />
@@ -647,7 +652,6 @@ const PotholeDetailsPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-
                   <div className="flex items-center">
                     <User className="h-5 w-5 text-gray-400 mr-3" />
                     <div>
@@ -655,7 +659,6 @@ const PotholeDetailsPage: React.FC = () => {
                       <p className="text-gray-600 text-sm">{pothole.reportedBy?.name || "N/A"}</p>
                     </div>
                   </div>
-
                   <div className="flex items-center">
                     <Calendar className="h-5 w-5 text-gray-400 mr-3" />
                     <div>
@@ -663,12 +666,11 @@ const PotholeDetailsPage: React.FC = () => {
                       <p className="text-gray-600 text-sm">{new Date(pothole.reportedAt).toLocaleDateString()}</p>
                     </div>
                   </div>
-
                   {pothole.dimensions && (
                     <div className="flex items-start">
                       <Ruler className="h-5 w-5 text-gray-400 mr-3 mt-1" />
                       <div>
-                        <p className="font-semibold text-black">Dimensions</p>
+                        <p className="font-medium text-black">Dimensions</p>
                         <div className="text-gray-600 text-sm space-y-1">
                           {pothole.dimensions.length !== undefined && <p>Length: {pothole.dimensions.length}m</p>}
                           {pothole.dimensions.width !== undefined && <p>Width: {pothole.dimensions.width}m</p>}
@@ -677,7 +679,6 @@ const PotholeDetailsPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-
                   {pothole.repairedAt && (
                     <div className="flex items-center">
                       <CheckCircle className="h-5 w-5 text-gray-600 mr-3" />
@@ -689,7 +690,6 @@ const PotholeDetailsPage: React.FC = () => {
                   )}
                 </div>
               </div>
-
               {/* Tagged Officials */}
               {pothole.taggedOfficials && pothole.taggedOfficials.length > 0 && (
                 <div className="bg-gray-50 rounded-3xl p-6 border border-gray-200">
@@ -722,7 +722,6 @@ const PotholeDetailsPage: React.FC = () => {
             </div>
           </div>
         </div>
-
         {/* Comments and Repair Section */}
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Comments Section */}
@@ -731,7 +730,6 @@ const PotholeDetailsPage: React.FC = () => {
               <MessageCircle className="h-6 w-6 lg:h-7 lg:w-7 mr-3" />
               Comments ({pothole.comments.length})
             </h2>
-
             {/* Add Comment Form */}
             <form onSubmit={handleAddComment} className="mb-8">
               <Textarea
@@ -754,9 +752,7 @@ const PotholeDetailsPage: React.FC = () => {
                 </Button>
               </div>
             </form>
-
             <Separator className="mb-8" />
-
             {/* Comments List */}
             <div className="max-h-96 lg:max-h-[500px] overflow-y-auto">
               {pothole.comments.length === 0 ? (
@@ -782,7 +778,6 @@ const PotholeDetailsPage: React.FC = () => {
               )}
             </div>
           </div>
-
           {/* Repair Section */}
           <div className="bg-gray-50 rounded-3xl p-6 lg:p-8 border border-gray-200">
             <h2 className="text-2xl lg:text-3xl font-bold text-black mb-6 flex items-center">
@@ -798,7 +793,6 @@ const PotholeDetailsPage: React.FC = () => {
                 </>
               )}
             </h2>
-
             {pothole.status?.toLowerCase() === "repaired" && pothole.repairReport ? (
               <div className="bg-white border-2 border-gray-200 p-6 rounded-2xl">
                 <div className="flex items-center space-x-3 mb-4">
@@ -818,24 +812,22 @@ const PotholeDetailsPage: React.FC = () => {
                     </p>
                   </div>
                 </div>
-
                 {pothole.repairReport.image && (
                   <div className="relative w-full h-48 mb-4 rounded-xl overflow-hidden border border-gray-200">
                     <Image
                       src={pothole.repairReport.image || "/placeholder.svg?height=200&width=400"}
                       alt="Repair report image"
                       fill
-                      className="object-cover"
+                      className="object-contain cursor-pointer" // Changed to object-contain and added cursor
+                      onClick={() => openFullscreen(pothole.repairReport?.image || "/placeholder.svg")}
                     />
                   </div>
                 )}
-
                 {pothole.repairReport.comment && (
                   <p className="text-gray-700 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
                     {pothole.repairReport.comment}
                   </p>
                 )}
-
                 <div className="flex gap-3">
                   <Button
                     onClick={handleRepairReportUpvote}
@@ -854,7 +846,6 @@ const PotholeDetailsPage: React.FC = () => {
                     )}
                     {pothole.repairReport.upvotes?.length || 0}
                   </Button>
-
                   <Button
                     onClick={handleRepairReportDownvote}
                     disabled={isUpvotingRepairReport || isDownvotingRepairReport}
@@ -906,6 +897,27 @@ const PotholeDetailsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Image Modal */}
+      {showFullscreenImage && fullscreenImageSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4">
+          <button
+            onClick={closeFullscreen}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close fullscreen image"
+          >
+            <X className="h-8 w-8" />
+          </button>
+          <div className="relative w-full h-full max-w-screen-lg max-h-screen-lg flex items-center justify-center">
+            <Image
+              src={fullscreenImageSrc || "/placeholder.svg"}
+              alt="Fullscreen preview"
+              fill
+              className="object-contain" // Ensure the full image is visible
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

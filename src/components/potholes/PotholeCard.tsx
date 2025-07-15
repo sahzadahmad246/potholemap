@@ -30,7 +30,6 @@ interface PotholeCardProps {
     reportedBy: { name: string; image?: string }
     reportedAt: string
     upvotedBy: string[]
-    
     comments: { userId: { username: string }; comment: string }[]
     spamReportCount: number
     status: string
@@ -54,12 +53,10 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
   const handleUpvote = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
     if (!userId) {
       toast.error("You need to be logged in to upvote.")
       return
     }
-
     setIsUpvoting(true)
     try {
       const res = await fetch(`/api/potholes/${pothole._id}/upvote`, {
@@ -86,12 +83,10 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
   const handleSpamReport = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
     if (!userId) {
       toast.error("You need to be logged in to report spam.")
       return
     }
-
     setIsReportingSpam(true)
     try {
       const res = await fetch(`/api/potholes/${pothole._id}/spam-report`, {
@@ -118,7 +113,6 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
   const handleGoogleMapsNavigation = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
     const [longitude, latitude] = pothole.location.coordinates
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`
     window.open(googleMapsUrl, "_blank")
@@ -172,9 +166,8 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
               src={pothole.images[currentImageIndex]?.url || "/placeholder.svg?height=200&width=400"}
               alt={pothole.title}
               fill
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-contain transition-transform duration-300 group-hover:scale-105" // Changed to object-contain
             />
-
             {/* Image Navigation */}
             {pothole.images.length > 1 && (
               <>
@@ -190,7 +183,6 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
-
                 {/* Image Indicators */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1">
                   {pothole.images.map((_, index) => (
@@ -204,7 +196,6 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
                 </div>
               </>
             )}
-
             {/* Status and Criticality Badges */}
             <div className="absolute top-3 left-3 flex flex-col space-y-2">
               <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getStatusColor(pothole.status)}`}>
@@ -219,7 +210,6 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
             </div>
           </div>
         )}
-
         {/* Content Section */}
         <div className="p-6">
           {/* Title and Description */}
@@ -229,33 +219,27 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
             </h3>
             <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">{pothole.description}</p>
           </div>
-
           {/* Location */}
           <div className="flex items-start mb-4">
             <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
             <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed">{pothole.address}</p>
           </div>
-
           {/* Reporter and Date */}
           <div className="flex items-center justify-between mb-6 text-xs text-gray-500">
             <div className="flex items-center">
-             <Avatar className="h-9 w-9 flex-shrink-0">
-              <AvatarImage
-                src={pothole.reportedBy.image || "/placeholder.svg"}
-              />
-              <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white text-sm">
-                {pothole.reportedBy.name}
-              </AvatarFallback>
-            </Avatar>
+              <Avatar className="h-9 w-9 flex-shrink-0">
+                <AvatarImage src={pothole.reportedBy.image || "/placeholder.svg"} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white text-sm">
+                  {pothole.reportedBy.name}
+                </AvatarFallback>
+              </Avatar>
               <span className="ps-2 truncate">{pothole.reportedBy.name}</span>
             </div>
-           
             <div className="flex items-center">
               <Calendar className="h-3 w-3 mr-1" />
               <span>{new Date(pothole.reportedAt).toLocaleDateString()}</span>
             </div>
           </div>
-
           {/* Action Buttons */}
           <div className="flex items-center justify-between">
             <div className="flex space-x-2">
@@ -270,7 +254,6 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
                 <ThumbsUp className="h-4 w-4 mr-1" />
                 {isUpvoting ? "..." : pothole.upvotes}
               </button>
-
               {/* Spam Report Button */}
               <button
                 onClick={handleSpamReport}
@@ -281,7 +264,6 @@ const PotholeCard: React.FC<PotholeCardProps> = ({ pothole, onUpvoteSuccess }) =
                 {isReportingSpam ? "..." : pothole.spamReportCount}
               </button>
             </div>
-
             {/* Google Maps Navigation Button */}
             <button
               onClick={handleGoogleMapsNavigation}

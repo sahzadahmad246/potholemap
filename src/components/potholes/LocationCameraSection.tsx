@@ -109,51 +109,54 @@ export default function LocationCameraSection({
     detectLocation();
   }, [detectLocation]);
 
-  const startCamera = async () => {
+    const startCamera = async () => {
     setCameraLoading(true);
     setVideoReady(false);
-
-    if (!videoRef.current) {
-      toast.error("Video element not found.");
-      setCameraLoading(false);
-      return;
-    }
-
-    const video = videoRef.current;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "environment",
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
       });
 
       setCameraStream(stream);
-      video.srcObject = stream;
+      
+      // Use a timeout to ensure the video element is available in the DOM
+      const checkVideoElement = () => {
+        if (videoRef.current) {
+          const video = videoRef.current;
+          video.srcObject = stream;
 
-      video.onloadedmetadata = () => {
-        video
-          .play()
-          .then(() => {
-            setVideoReady(true);
-            setCameraLoading(false);
-            toast.success("Camera started successfully!");
-          })
-          .catch((error) => {
-            console.error("Error playing video:", error);
-            toast.error("Error starting video playback.");
+          video.onloadedmetadata = () => {
+            video.play()
+              .then(() => {
+                setVideoReady(true);
+                setCameraLoading(false);
+                toast.success("Camera started successfully!");
+              })
+              .catch((error) => {
+                console.error("Error playing video:", error);
+                toast.error("Error starting video playback.");
+                setCameraLoading(false);
+                stopCamera();
+              });
+          };
+
+          video.onerror = () => {
+            toast.error("An error occurred with the video stream.");
             setCameraLoading(false);
             stopCamera();
-          });
+          };
+        } else {
+          // If video element isn't available yet, try again after a short delay
+          setTimeout(checkVideoElement, 100);
+        }
       };
 
-      video.onerror = () => {
-        toast.error("An error occurred with the video stream.");
-        setCameraLoading(false);
-        stopCamera();
-      };
+      checkVideoElement();
     } catch (error) {
       console.error("Camera access error:", error);
       let errorMessage = "Unable to access camera.";

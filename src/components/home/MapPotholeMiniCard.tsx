@@ -1,4 +1,5 @@
 "use client"
+
 import type React from "react"
 import Link from "next/link"
 import { MapPin, Calendar, AlertTriangle, Navigation } from "lucide-react"
@@ -73,7 +74,6 @@ const MapPotholeDetailsCard: React.FC<MapPotholeDetailsCardProps> = ({ pothole, 
       >
         <span className="text-gray-600 font-bold text-lg">×</span>
       </button>
-
       {/* Content Section */}
       <div className="p-6 pt-4">
         {/* Status and Criticality Badges */}
@@ -88,7 +88,6 @@ const MapPotholeDetailsCard: React.FC<MapPotholeDetailsCardProps> = ({ pothole, 
             {pothole.criticality?.toUpperCase()}
           </span>
         </div>
-
         {/* Title and Description */}
         <div className="mb-4">
           <h3 className="text-xl font-bold text-black mb-1 line-clamp-1">{pothole.title}</h3>
@@ -96,13 +95,11 @@ const MapPotholeDetailsCard: React.FC<MapPotholeDetailsCardProps> = ({ pothole, 
             {pothole.description || "No description provided."}
           </p>
         </div>
-
         {/* Location */}
         <div className="flex items-start mb-4">
           <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
           <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed">{pothole.address}</p>
         </div>
-
         {/* Reporter and Date */}
         <div className="flex items-center justify-between mb-6 text-xs text-gray-500">
           <div className="flex items-center">
@@ -117,13 +114,11 @@ const MapPotholeDetailsCard: React.FC<MapPotholeDetailsCardProps> = ({ pothole, 
             </Avatar>
             <span className="ps-2 truncate">{pothole.reportedBy.name || "Anonymous"}</span>
           </div>
-
           <div className="flex items-center">
             <Calendar className="h-3 w-3 mr-1" />
             <span>{formatTimeAgo(new Date(pothole.reportedAt))}</span>
           </div>
         </div>
-
         {/* Action Buttons */}
         <div className="flex justify-end">
           {/* Google Maps Navigation Button */}
